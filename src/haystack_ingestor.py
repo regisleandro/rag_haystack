@@ -8,9 +8,9 @@ from haystack.components.writers import DocumentWriter
 import src.document_store as document_store_module
 
 class HaystackIngestor:
-  def __init__(self):
+  def __init__(self, recreate_table=True):
     load_dotenv()
-    self.document_store = document_store_module.DocumentStore(recreate_table=True).document_store
+    self.document_store = document_store_module.DocumentStore(recreate_table=recreate_table).document_store
 
   def ingest_files(self, file_names: list[str]):
     pipeline = Pipeline()

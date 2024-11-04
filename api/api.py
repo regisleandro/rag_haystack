@@ -2,13 +2,16 @@ from fastapi import (
     FastAPI,
     Body,
     Depends,
+    File,
     HTTPException,
-    status
+    status,
+    UploadFile
 )
 
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from fastapi.middleware.cors import CORSMiddleware
 import logging
+import tempfile
 
 import sys
 sys.path.append('../')
@@ -19,6 +22,7 @@ import os
 load_dotenv()
 
 from pydantic import BaseModel
+from src.haystack_ingestor import HaystackIngestor
 from src.haystack_multi_query_answer import HaystackMultiQueryAnswer
 
 log = logging.getLogger(__name__)
@@ -49,6 +53,7 @@ app.add_middleware(
 )
 
 app.state.multi_query_pipeline = HaystackMultiQueryAnswer()
+app.state.ingestor = HaystackIngestor(recreate_table=False)
 
 class QuestionRequest(BaseModel):
   query: str
@@ -59,3 +64,13 @@ async def process_question(question_request: QuestionRequest = Body(...)):
   print(answer)
 
   return answer
+
+@app.post('/ingest', dependencies=[Depends(verify_token)])
+async def ingest_data(file: UploadFile = File(...)):
+  with tempfile.TemporaryDirectory() as tmp_dir:
+    file_path = os.path.join(tmp_dir, file.filename)
+    with open(file_path, 'wb') as temp_file:
+      content = await file.read()
+      temp_file.write(content)
+    app.state.ingestor.ingest_files([file_path])
+  return {'message': 'Data ingested successfully'}
