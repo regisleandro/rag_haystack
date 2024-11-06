@@ -1,4 +1,4 @@
-FROM python:3.12
+FROM python:3.11.2-slim-bullseye
 LABEL name="Legal RAG"
 LABEL version="0.0.1"
 LABEL description="Legal RAG is a tool for legal research and analysis."
@@ -8,13 +8,26 @@ RUN addgroup --gid 1002 --system user
 RUN adduser --uid 1002 --ingroup user --disabled-password --gecos "" user
 RUN adduser --uid 1002 --system user -G user -h /home/user --shell /bin/bash
 
+RUN apt-get update && \
+  apt-get install -y --no-install-recommends \
+  build-essential \
+  libpq-dev && \
+  rm -rf /var/lib/apt/lists/*
+
 WORKDIR /app
 
-RUN git clone https://github.com/regisleandro/rag_haystack.git .
+ADD api /app/api
+ADD src /app/src
+ADD requirements.txt /app/requirements.txt
 
-RUN pip install --no-cache-dir -r /app/requirements.txt
+RUN pip install --no-compile --no-cache-dir -r /app/requirements.txt
+
+RUN apt-get remove -y build-essential libpq-dev && \
+  apt-get autoremove -y
 
 RUN chown user:user -R /app
 USER user
 
 EXPOSE 35000
+
+CMD ["uvicorn", "api.api:app", "--host", "0.0.0.0", "--port", "35000"]
