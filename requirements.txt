@@ -15,3 +15,5 @@ haystack-ai
 python-multipart
 python-dotenv
 typesense
+spacy
+numpy

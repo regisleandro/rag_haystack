@@ -24,6 +24,8 @@ load_dotenv()
 from pydantic import BaseModel
 from src.haystack_ingestor import HaystackIngestor
 from src.haystack_multi_query_answer import HaystackMultiQueryAnswer
+from src.typesense_ingestor import TypesenseIngestor
+from src.typesense_query_answer import TypesenseQueryAnswer
 
 log = logging.getLogger(__name__)
 
@@ -55,15 +57,15 @@ app.add_middleware(
 app.state.multi_query_pipeline = HaystackMultiQueryAnswer()
 app.state.ingestor = HaystackIngestor(recreate_table=False)
 
+app.typesense_ingestor = TypesenseIngestor()
+app.typesense_query_answer = TypesenseQueryAnswer()
+
 class QuestionRequest(BaseModel):
   query: str
 
 @app.post('/ask', dependencies=[Depends(verify_token)])
 async def process_question(question_request: QuestionRequest = Body(...)):
-  answer = app.state.multi_query_pipeline.run(question_request.query)
-  print(answer)
-
-  return answer
+  return app.state.multi_query_pipeline.run(question_request.query)
 
 @app.post('/ingest', dependencies=[Depends(verify_token)])
 async def ingest_data(file: UploadFile = File(...)):
@@ -74,3 +76,22 @@ async def ingest_data(file: UploadFile = File(...)):
       temp_file.write(content)
     app.state.ingestor.ingest_files([file_path])
   return {'message': 'Data ingested successfully'}
+
+@app.post('/typesense/ask', dependencies=[Depends(verify_token)])
+def typesense_process_question(question_request: QuestionRequest = Body(...)):
+  return app.typesense_query_answer.query(question_request.query)
+
+@app.post('/typesense/ingest', dependencies=[Depends(verify_token)])
+async def typesense_ingest_data(file: UploadFile = File(...)):
+  with tempfile.TemporaryDirectory() as tmp_dir:
+    file_path = os.path.join(tmp_dir, file.filename)
+    with open(file_path, 'wb') as temp_file:
+      content = await file.read()
+      temp_file.write(content)
+    app.typesense_ingestor.ingest_files([file_path])
+  return {'message': 'Data ingested successfully'}
+
+@app.post('/typesense/schema', dependencies=[Depends(verify_token)])
+def create_typesense_schema():
+  app.typesense_ingestor.create_schema()
+  return {'message': 'Schema created successfully'}

@@ -11,8 +11,11 @@ RUN adduser --uid 1002 --system user -G user -h /home/user --shell /bin/bash
 RUN apt-get update && \
   apt-get install -y --no-install-recommends \
   build-essential \
-  libpq-dev && \
-  rm -rf /var/lib/apt/lists/*
+  libpq-dev \
+  gfortran \
+  libopenblas-dev \
+  libc6-dev \
+  && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
@@ -20,10 +23,14 @@ ADD api /app/api
 ADD src /app/src
 ADD requirements.txt /app/requirements.txt
 
+RUN pip install --upgrade pip
+
 RUN pip install --no-compile --no-cache-dir -r /app/requirements.txt
 
 RUN apt-get remove -y build-essential libpq-dev && \
   apt-get autoremove -y
+
+RUN python -m spacy download pt_core_news_sm
 
 RUN chown user:user -R /app
 USER user
