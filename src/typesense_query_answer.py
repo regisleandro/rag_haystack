@@ -26,7 +26,7 @@ class TypesenseQueryAnswer:
     self.query_pipeline = self.query_pipeline()
 
   def query(self, query: str):
-    lemmatized_query = self.lemmatizer.lemmatize(query)
+    lemmatized_query = self.lemmatizer.lemmatize_without_stopwords(query)
     search_parameters = self.search_parameters_builder(lemmatized_query)
     return self.query_pipeline.run({
       'retriever': {'search_parameters': search_parameters},

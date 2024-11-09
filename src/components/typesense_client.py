@@ -1,3 +1,4 @@
+import itertools
 import typesense
 from haystack import component, Document
 from typing import List
@@ -22,11 +23,14 @@ class TypesenseClient:
 
   @component.output_types(documents=List[Document])
   def run(self, documents: List[Document]):
-    documents_for_typesense = []
-    documents_for_typesense = [{'content': self.lemmatizer.lemmatize(doc.content), 'meta': doc.meta} for doc in documents]
+    for batch in itertools.batched(documents, 50):
+      documents_for_typesense = []
+      for doc in batch:
+        documents_for_typesense.append({
+          'content': self.lemmatizer.lemmatize_without_stopwords(doc.content),
+          'meta': doc.meta or {}
+        })
+      # Import documents into Typesense
+      self.client.collections['documents'].documents.import_(documents_for_typesense)
 
-    print(documents_for_typesense)
-
-    # Import documents into Typesense
-    self.client.collections['documents'].documents.import_(documents_for_typesense)
     return {'documents': documents}
